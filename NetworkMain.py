@@ -71,7 +71,7 @@ def weights_init(m):
 class fRGB(nn.Module):
     def __init__(self, in_c, out_c):
         super().__init__()
-        self.cvt = EqualizedLR_Conv2d(in_c, out_c, kernal_size=(1,1), stride=(1,1))
+        self.cvt = EqualizedLR_Conv2d(in_c, out_c, (1,1), stride=(1,1))
         self.relu = nn.LeakyReLU(0.2, inplace=True)
         
     def forward(self, x):
@@ -81,7 +81,7 @@ class fRGB(nn.Module):
 class tRGB(nn.Module):
     def __init__(self, in_c, out_c):
         super().__init__()
-        self.cvt = EqualizedLR_Conv2d(in_c, out_c, kernal_size=(1,1), stride=(1,1))
+        self.cvt = EqualizedLR_Conv2d(in_c, out_c, (1,1), stride=(1,1))
         
     def forward(self, x):
         return(self.cvt(x))
@@ -99,14 +99,14 @@ class D_Cell(nn.Module):
         #Define network structure                                                         #initial block b (1-alpha)
         if sb == 0:
             #Set normal cell structure
-            self.econv1 = EqualizedLR_Conv2d(in_c, out_c, kernel_size=(3,3), stride=(1,1), padding=(1,1)) #Initial block a (alpha)
+            self.econv1 = EqualizedLR_Conv2d(in_c, out_c, (3,3), stride=(1,1), padding=(1,1)) #Initial block a (alpha)
             
-            self.econv2 = EqualizedLR_Conv2d(out_c, out_c, kernel_size=(4,4), stride=(1,1))
+            self.econv2 = EqualizedLR_Conv2d(out_c, out_c, (4,4), stride=(1,1))
             
             self.outlayer = nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 2))
         else:
             self.mbstd = Minibatch_std()
-            self.econv2 = EqualizedLR_Conv2d(out_c, out_c, kernel_size=(4,4), stride=(1,1)) #output block
+            self.econv2 = EqualizedLR_Conv2d(out_c, out_c, (4,4), stride=(1,1)) #output block
             self.finish = nn.Sequential(nn.Flatten(), nn.Linear(out_c, out_c) ,nn.LeakyReLU(0.2, inplace=True), nn.Linear(out_c, 1))
         self.relu = nn.LeakyReLU(0.2, inplace=True)
     
@@ -137,11 +137,11 @@ class G_Cell(nn.Module):
         #Define network structure
         if sb == 0:
             self.us = nn.Upsample(scale_factor=2, mode='nearest') #Base block (standard cell)
-            self.conv1 = EqualizedLR_Conv2d(in_c, out_c, kernel_size=(3,3), stride=(1,1), padding='same')
-            self.conv2 = EqualizedLR_Conv2d(in_c, out_c, kernel_size=(3,3), stride=(1,1), padding='same')
+            self.conv1 = EqualizedLR_Conv2d(in_c, out_c, (3,3), stride=(1,1), padding='same')
+            self.conv2 = EqualizedLR_Conv2d(in_c, out_c, (3,3), stride=(1,1), padding='same')
         elif sb == 1:
-            self.dense = nn.Linear(in_c) #Our first initial training layer
-            self.conv1 = EqualizedLR_Conv2d(in_c, out_c, kernel_size=(3,3), stride=(1,1), padding='same')
+            self.dense = nn.Linear(in_c, in_c) #Our first initial training layer
+            self.conv1 = EqualizedLR_Conv2d(in_c, out_c, (3,3), stride=(1,1), padding='same')
             
         
         self.relu = nn.LeakyReLU(0.2, inplace=True)
@@ -188,7 +188,7 @@ class G(nn.Module):
         out is desired output resolution
         build structure iteratively
         """
-        super().__init()
+        super().__init__()
         self.depth = 1 #Current indexing
         self.alpha = 1 #Fade value
         self.incalpha = 0 #Value to increment alpha by
@@ -196,7 +196,7 @@ class G(nn.Module):
         self.trgb = tRGB(ls, 3) #torgb value
         self.us = nn.Upsample(scale_factor=2, mode='nearest')
         self.net = nn.ModuleList([G_Cell(ls, ls, sb=1)])
-        self.rgbs = nn.ModuleList([tRGB(latent_size, 3)])
+        self.rgbs = nn.ModuleList([tRGB(ls, 3)])
         
         #Add all standard blocks
         for i in range(2, int(np.log2(out))):
@@ -233,7 +233,7 @@ class D(nn.Module):
         self.incalpha = 0
         
         self.relu = nn.LeakyReLU(0.2, inplace=True)
-        self.ds = nn.AvgPool2d(kernel_size(2,2), stride(2,2))
+        self.ds = nn.AvgPool2d(2, stride=(2,2))
         
         self.net = nn.ModuleList([D_Cell(ls, ls, sb=3)]) #initialize final block
         self.frgbs = nn.ModuleList([fRGB(3, ls)])

@@ -109,6 +109,12 @@ class D_Cell(nn.Module):
             self.econv2 = EqualizedLR_Conv2d(out_c, out_c, (4,4), stride=(1,1)) #output block
             self.finish = nn.Sequential(nn.Flatten(), nn.Linear(out_c, out_c) ,nn.LeakyReLU(0.2, inplace=True), nn.Linear(out_c, 1))
         self.relu = nn.LeakyReLU(0.2, inplace=True)
+                #Weight inititalization
+        if sb == 0:
+            nn.init.normal_(self.econv1.weight)
+            nn.init.zeros_(self.econv1.bias)
+        nn.init.normal_(self.econv2.bias)
+        nn.init.zeros_(self.econv2.bias)
     
     def forward(self, x):
         ### - Account for each discriminator block archetype - ###
@@ -146,6 +152,12 @@ class G_Cell(nn.Module):
         
         self.relu = nn.LeakyReLU(0.2, inplace=True)
         self.pn = Pixel_norm()
+        #Weight inititalization
+        nn.init.normal_(self.conv1.weight)
+        nn.init.zeros_(self.conv1.bias)
+        if sb == 0:
+            nn.init.normal_(self.conv2.bias)
+            nn.init.zeros_(self.conv2.bias)
         
     def forward(self, x):
         if self.sb == 0:

@@ -75,7 +75,7 @@ class fRGB(nn.Module):
         self.relu = nn.LeakyReLU(0.2, inplace=True)
         
     def forward(self, x):
-        x = self.conv(x)
+        x = self.cvt(x)
         return self.relu(x)
         
 class tRGB(nn.Module):
@@ -106,8 +106,10 @@ class D_Cell(nn.Module):
             self.outlayer = nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 2))
         else:
             self.mbstd = Minibatch_std()
-            self.econv2 = EqualizedLR_Conv2d(out_c, out_c, (4,4), stride=(1,1)) #output block
-            self.finish = nn.Sequential(nn.Flatten(), nn.Linear(out_c, out_c) ,nn.LeakyReLU(0.2, inplace=True), nn.Linear(out_c, 1))
+            self.econv1 = EqualizedLR_Conv2d(in_c+1, out_c, (3,3), stride=(1,1), padding=(1,1)) #Initial block a (alpha)
+            self.econv2 = EqualizedLR_Conv2d(out_c, out_c, (3,3), stride=(1,1), padding = (1,1)) #output block
+            self.flat = nn.Flatten()
+            self.lin = nn.Linear(16*out_c, 1) #We multiply by 16 since our first image will always be 4x4, therefore this flatten will always lead to this value
         self.relu = nn.LeakyReLU(0.2, inplace=True)
                 #Weight inititalization
         if sb == 0:
@@ -115,22 +117,26 @@ class D_Cell(nn.Module):
             nn.init.zeros_(self.econv1.bias)
         nn.init.normal_(self.econv2.bias)
         nn.init.zeros_(self.econv2.bias)
-    
+    # ,nn.LeakyReLU(0.2, inplace=True), nn.Linear(out_c, 1)
     def forward(self, x):
         ### - Account for each discriminator block archetype - ###
         if self.sb == 0:
             x = self.econv1(x)
             x = self.relu(x)
             
-            x = self.econv(x)
+            x = self.econv2(x)
             x = self.relu(x)
             
             x = self.outlayer(x)
         else:
             x = self.mbstd(x)
+            x = self.econv1(x)
+            x = self.relu(x)
             x = self.econv2(x)
             x = self.relu(x)
-            x = self.finish(x)
+            x = self.flat(x)
+            print(x.shape)
+            x=self.lin(x)
         return x
             
 #Generator Block
@@ -143,12 +149,11 @@ class G_Cell(nn.Module):
         #Define network structure
         if sb == 0:
             self.us = nn.Upsample(scale_factor=2, mode='nearest') #Base block (standard cell)
-            self.conv1 = EqualizedLR_Conv2d(in_c, out_c, (3,3), stride=(1,1), padding='same')
-            self.conv2 = EqualizedLR_Conv2d(in_c, out_c, (3,3), stride=(1,1), padding='same')
-        elif sb == 1:
-            self.dense = nn.Linear(in_c, in_c) #Our first initial training layer
-            self.conv1 = EqualizedLR_Conv2d(in_c, out_c, (3,3), stride=(1,1), padding='same')
-            
+            self.conv1 = EqualizedLR_Conv2d(in_c, out_c, (3,3), stride=(1,1), padding=(1,1))
+        else:
+            self.conv1 = EqualizedLR_Conv2d(in_c, out_c, (4,4), stride=(1,1), padding=(3,3))
+        self.conv2 = EqualizedLR_Conv2d(out_c, out_c, (3,3), stride=(1,1), padding=(1,1))
+
         
         self.relu = nn.LeakyReLU(0.2, inplace=True)
         self.pn = Pixel_norm()
@@ -162,20 +167,13 @@ class G_Cell(nn.Module):
     def forward(self, x):
         if self.sb == 0:
             x = self.us(x)
-            x = self.conv1(x)
-            x = self.relu(x)
-            x = self.pn(x)
-            x = self.conv2(x)
-            x = self.relu(x)
-            x = self.pn(x)
-        elif self.sb == 1:
-            x = self.pn(x)
-            x = self.dense(x)
-            x = self.relu(x)
-            x = self.pn(x)
-            x = self.conv1(x)
-            x = self.relu(x)
-            x = self.pn(x)
+            print(x.shape)
+        x = self.conv1(x)
+        x = self.relu(x)
+        x = self.pn(x)
+        x = self.conv2(x)
+        x = self.relu(x)
+        x = self.pn(x)
         return x
             
 
@@ -218,7 +216,7 @@ class G(nn.Module):
                 out_c = 1024
             else:
                 in_c = int(1024 / 2**(i-7))
-                out_c = int(1024 / 2**(i-7))
+                out_c = int(1024 / 2**(i-6))
             self.net.append(G_Cell(in_c, out_c))
             self.rgbs.append(tRGB(out_c, 3))
             
@@ -254,28 +252,28 @@ class D(nn.Module):
             if i < 7:
                 in_c, out_c = 1024, 1024
             else:
-                in_c, out_c = int(512 / 2**(i - 5)), int(512 / 2**(i - 6))
+                in_c, out_c = int(512 / 2**(i - 7)), int(512 / 2**(i - 6))
                 
             self.net.append(D_Cell(in_c, out_c))
             self.frgbs.append(fRGB(3, in_c))
             
-        def forward(self, x):
-            xc = self.frgbs[self.depth-1](x)
-            xc = self.net[self.depth-1](xc)
-            if self.alpha < 1: #if depth != 1
-                x = self.ds(x)
-                xprev = self.frgbs[self.depth-2](x)
-                xprev = self.relu(xprev)
-                xc = self.alpha*xprev + self.alpha*xc
-            for cell in reversed(self.net[:self.depth-1]):
-                xc = cell(xc)
-            
-            return xc
-        
-        def inc_depth(self, iters):
-            self.incalpha = 1/iters
-            self.alpha = 1/iters
-            self.depth += 1
+    def forward(self, x):
+        xc = self.frgbs[self.depth-1](x)
+        xc = self.net[self.depth-1](xc)
+        if self.alpha < 1: #if depth != 1
+            x = self.ds(x)
+            xprev = self.frgbs[self.depth-2](x)
+            xprev = self.relu(xprev)
+            xc = self.alpha*xprev + self.alpha*xc
+        for cell in reversed(self.net[:self.depth-1]):
+            xc = cell(xc)
+
+        return xc
+
+    def inc_depth(self, iters):
+        self.incalpha = 1/iters
+        self.alpha = 1/iters
+        self.depth += 1
         
 
 

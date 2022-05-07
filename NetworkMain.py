@@ -134,6 +134,7 @@ class D_Cell(nn.Module):
             x = self.relu(x)
             x = self.econv2(x)
             x = self.relu(x)
+            print(x.shape)
             x = self.flat(x)
             x=self.lin(x)
         return x
@@ -210,18 +211,15 @@ class G(nn.Module):
         #Add all standard blocks
         for i in range(2, int(np.log2(out))):
             ### - trick is to decrease the latent vector as well for each of the higher level blocks - ###
-            if i < 7: 
-                in_c = 1024
-                out_c = 1024
-            else:
-                in_c = int(1024 / 2**(i-7))
-                out_c = int(1024 / 2**(i-6))
+            in_c = ls
+            out_c = ls
             self.net.append(G_Cell(in_c, out_c))
             self.rgbs.append(tRGB(out_c, 3))
             
     def forward(self, x):
         for cell in self.net[:self.depth-1]:
             x = cell(x)
+            print(x.shape)
         out = self.net[self.depth-1](x)
         crgb = self.rgbs[self.depth-1](out)
         if self.alpha < 1:
@@ -248,10 +246,7 @@ class D(nn.Module):
         self.frgbs = nn.ModuleList([fRGB(3, ls)])
         
         for i in range(2, int(np.log2(out))):
-            if i < 7:
-                in_c, out_c = 1024, 1024
-            else:
-                in_c, out_c = int(512 / 2**(i - 7)), int(512 / 2**(i - 6))
+            in_c, out_c = ls, ls
                 
             self.net.append(D_Cell(in_c, out_c))
             self.frgbs.append(fRGB(3, in_c))
@@ -263,7 +258,9 @@ class D(nn.Module):
             x = self.ds(x)
             xprev = self.frgbs[self.depth-2](x)
             xprev = self.relu(xprev)
-            xc = self.alpha*xprev + self.alpha*xc
+            xprev = self.ds(xprev)
+            print("xc: " + str(xc.shape), "xprev: " + str(xprev.shape))
+            xc = self.alpha*xprev + (1-self.alpha)*xc
         for cell in reversed(self.net[:self.depth-1]):
             xc = cell(xc)
 

@@ -135,7 +135,6 @@ class D_Cell(nn.Module):
             x = self.econv2(x)
             x = self.relu(x)
             x = self.flat(x)
-            print(x.shape)
             x=self.lin(x)
         return x
             

@@ -72,7 +72,7 @@ class fRGB(nn.Module):
     def __init__(self, in_c, out_c):
         super().__init__()
         self.cvt = EqualizedLR_Conv2d(in_c, out_c, (1,1), stride=(1,1))
-        self.relu = nn.LeakyReLU(0.2, inplace=True)
+        self.relu = nn.LeakyReLU(0.2)
         
     def forward(self, x):
         x = self.cvt(x)
@@ -101,7 +101,7 @@ class D_Cell(nn.Module):
             #Set normal cell structure
             self.econv1 = EqualizedLR_Conv2d(in_c, out_c, (3,3), stride=(1,1), padding=(1,1)) #Initial block a (alpha)
             
-            self.econv2 = EqualizedLR_Conv2d(out_c, out_c, (4,4), stride=(1,1))
+            self.econv2 = EqualizedLR_Conv2d(out_c, out_c, (3,3), stride=(1,1), padding=(1,1))
             
             self.outlayer = nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 2))
         else:
@@ -110,7 +110,7 @@ class D_Cell(nn.Module):
             self.econv2 = EqualizedLR_Conv2d(out_c, out_c, (3,3), stride=(1,1), padding = (1,1)) #output block
             self.flat = nn.Flatten()
             self.lin = nn.Linear(16*out_c, 1) #We multiply by 16 since our first image will always be 4x4, therefore this flatten will always lead to this value
-        self.relu = nn.LeakyReLU(0.2, inplace=True)
+        self.relu = nn.LeakyReLU(0.2)
                 #Weight inititalization
         if sb == 0:
             nn.init.normal_(self.econv1.weight)
@@ -134,7 +134,6 @@ class D_Cell(nn.Module):
             x = self.relu(x)
             x = self.econv2(x)
             x = self.relu(x)
-            print(x.shape)
             x = self.flat(x)
             x=self.lin(x)
         return x
@@ -155,7 +154,7 @@ class G_Cell(nn.Module):
         self.conv2 = EqualizedLR_Conv2d(out_c, out_c, (3,3), stride=(1,1), padding=(1,1))
 
         
-        self.relu = nn.LeakyReLU(0.2, inplace=True)
+        self.relu = nn.LeakyReLU(0.2)
         self.pn = Pixel_norm()
         #Weight inititalization
         nn.init.normal_(self.conv1.weight)
@@ -167,7 +166,6 @@ class G_Cell(nn.Module):
     def forward(self, x):
         if self.sb == 0:
             x = self.us(x)
-            print(x.shape)
         x = self.conv1(x)
         x = self.relu(x)
         x = self.pn(x)
@@ -219,7 +217,6 @@ class G(nn.Module):
     def forward(self, x):
         for cell in self.net[:self.depth-1]:
             x = cell(x)
-            print(x.shape)
         out = self.net[self.depth-1](x)
         crgb = self.rgbs[self.depth-1](out)
         if self.alpha < 1:
@@ -239,7 +236,7 @@ class D(nn.Module):
         self.alpha = 1
         self.incalpha = 0
         
-        self.relu = nn.LeakyReLU(0.2, inplace=True)
+        self.relu = nn.LeakyReLU(0.2)
         self.ds = nn.AvgPool2d(2, stride=(2,2))
         
         self.net = nn.ModuleList([D_Cell(ls, ls, sb=3)]) #initialize final block
@@ -258,8 +255,7 @@ class D(nn.Module):
             x = self.ds(x)
             xprev = self.frgbs[self.depth-2](x)
             xprev = self.relu(xprev)
-            xprev = self.ds(xprev)
-            print("xc: " + str(xc.shape), "xprev: " + str(xprev.shape))
+            #xprev = self.ds(xprev)
             xc = self.alpha*xprev + (1-self.alpha)*xc
         for cell in reversed(self.net[:self.depth-1]):
             xc = cell(xc)

@@ -222,7 +222,7 @@ class G(nn.Module):
         if self.alpha < 1:
             xprev = self.us(x)
             rgbprev = self.rgbs[self.depth-2](xprev)
-            crgb = self.alpha * (rgbprev) + (1-self.alpha)*(crgb)
+            crgb = (self.alpha) * (rgbprev) + (1-self.alpha)*(crgb)
         return crgb
     def inc_depth(self, iters):
         self.incalpha = 1/iters
@@ -256,7 +256,7 @@ class D(nn.Module):
             xprev = self.frgbs[self.depth-2](x)
             xprev = self.relu(xprev)
             #xprev = self.ds(xprev)
-            xc = self.alpha*xprev + (1-self.alpha)*xc
+            xc = (self.alpha)*xprev + (1-self.alpha)*xc
         for cell in reversed(self.net[:self.depth-1]):
             xc = cell(xc)
 

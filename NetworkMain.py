@@ -154,7 +154,7 @@ class G_Cell(nn.Module):
         self.conv2 = EqualizedLR_Conv2d(out_c, out_c, (3,3), stride=(1,1), padding=(1,1))
 
         
-        self.relu = nn.LeakyReLU(0.2)
+        self.relu = nn.LeakyReLU()
         self.pn = Pixel_norm()
         #Weight inititalization
         nn.init.normal_(self.conv1.weight)
@@ -198,7 +198,7 @@ class G(nn.Module):
         """
         super().__init__()
         self.depth = 1 #Current indexing
-        self.alpha = 1 #Fade value
+        self.alpha = 0 #Fade value
         self.incalpha = 0 #Value to increment alpha by
         
         self.trgb = tRGB(ls, 3) #torgb value
@@ -219,10 +219,11 @@ class G(nn.Module):
             x = cell(x)
         out = self.net[self.depth-1](x)
         crgb = self.rgbs[self.depth-1](out)
-        if self.alpha < 1:
+        if self.alpha > 0:
             xprev = self.us(x)
             rgbprev = self.rgbs[self.depth-2](xprev)
             crgb = (1-self.alpha) * (rgbprev) + (self.alpha)*(crgb)
+            self.alpha += self.incalpha
         return crgb
     def inc_depth(self, iters):
         self.incalpha = 1/iters
@@ -233,7 +234,7 @@ class D(nn.Module):
     def __init__(self,ls, out):
         super().__init__()
         self.depth = 1
-        self.alpha = 1
+        self.alpha = 0
         self.incalpha = 0
         
         self.relu = nn.LeakyReLU(0.2)
@@ -251,12 +252,13 @@ class D(nn.Module):
     def forward(self, x):
         xc = self.frgbs[self.depth-1](x)
         xc = self.net[self.depth-1](xc)
-        if self.alpha < 1: #if depth != 1
+        if self.alpha > 0: #if depth != 1
             x = self.ds(x)
             xprev = self.frgbs[self.depth-2](x)
             xprev = self.relu(xprev)
             #xprev = self.ds(xprev)
             xc = (1-self.alpha)*xprev + (self.alpha)*xc
+            self.alpha += self.incalpha
         for cell in reversed(self.net[:self.depth-1]):
             xc = cell(xc)
 

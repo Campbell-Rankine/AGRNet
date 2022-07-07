@@ -292,7 +292,7 @@ def Train():
             inc += 1
             print("Growing network to size: " + str(2**(Gen.depth+2)))
             data_loader = DataLoader(dataset, **params)
-            tot_iter_num = tot_iter_num = (len(dataset)/batch_size)
+            tot_iter_num = tot_iter_num = (len(dataset)/batch_s_)
             Gen.inc_depth(schedule[0][inc]*tot_iter_num)
             Disc.inc_depth(schedule[0][inc]*tot_iter_num)
             size = 2**(Gen.depth+1)

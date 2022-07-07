@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='AGRNet',
-    version='1.0.0',
+    version='1.1.0',
     url='https://github.com/Campbell-Rankine/AGRNet',
     author='Campbell Rankine',
     author_email='campbellrankine@gmail.com',

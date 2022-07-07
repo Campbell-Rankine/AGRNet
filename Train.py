@@ -146,7 +146,7 @@ def Train():
     #assert(os.path.exists(DFP + str(1) + ".jpg"))
     rawimgf = sorted(glob.glob(DFP + '*.jpg', recursive = True))
     ### - image names - ###
-    imnames = [i.split('/')[-1].split("t")[-1][1:] for i in rawimgf]
+    imnames = [i.split('/')[-1].split("t")[-1][0:] for i in rawimgf]
 
     ### - Global data loader Vars - ###
     norms = (0.5,0.5,0.5), (0.5,0.5,0.5)

@@ -8,5 +8,5 @@ setup(
     author_email='campbellrankine@gmail.com',
     description='ProGAN implementation from NVidias 2019 paper',
     packages=find_packages(),    
-    install_requires=['python >= 3.9.7', 'pytorch >= 1.10.2', 'torchvision >= 0.10.2'],
+    install_requires=['pytorch >= 1.10.2', 'torchvision >= 0.10.2'],
 )

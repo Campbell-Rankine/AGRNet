@@ -71,6 +71,9 @@ def process_command_line_arguments() -> argparse.Namespace:
                         help="Resume training and load from a certain set of checkpoints. Format is depth_epoch (Optional)")
     parser.add_argument("-cp", "--cp", dest="cp", metavar="CHECKPOINT", default="/check_points/",
                         help="Checkpoint location folder, to be used when resuming from an epoch")
+    parser.add_argument("-w", "--w", dest="weight", metavar="WEIGHT", default="/weight/",
+                        help="Weight Location folder. Default: /weight/")
+
 
     args = parser.parse_args()
     if not os.path.exists(args.dataset):
@@ -102,7 +105,7 @@ def Train():
     data_dir = args.dataset
     check_point_dir = '/check_points/'
     output_dir = args.output
-    weight_dir = '/weight/'
+    weight_dir = args.weight
     if not os.path.exists(check_point_dir):
         os.makedirs(check_point_dir)
     if not os.path.exists(output_dir):

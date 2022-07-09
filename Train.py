@@ -226,7 +226,10 @@ def Train():
         batch_s_ = schedule[1][inc]
         D_epoch_losses = []
         G_epoch_losses = []
-        databar = tqdm(range(int(args.resume.split("_")[1]), epoch_))
+        if depth == curr_depth:
+            databar = tqdm(range(int(args.resume.split("_")[1]), epoch_))
+        else:
+            databar = tqdm(range(epoch_))
         for epoch in databar:
             D_epoch_loss = 0.0
             G_epoch_loss = 0.0

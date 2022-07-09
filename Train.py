@@ -41,10 +41,10 @@ from tqdm import tqdm
 """
 TODO:
     Remove unnecessary imports
-    Reformat training structure, goal of this file
-    Modular for google colab imports
-    GET THIS THING WORKING
-    Command Line Functionality
+    Reformat training structure, goal of this file X
+    Modular for google colab imports X
+    GET THIS THING WORKING X
+    Command Line Functionality X
 """
 
 #Command Line Functionality
@@ -67,6 +67,10 @@ def process_command_line_arguments() -> argparse.Namespace:
                         help="Output folder (default: %(default)s)")
     parser.add_argument("-r", "--res", dest="res", metavar="RES", default=1024,
                         help="Desired output resolution to grow to. Default: 1024")
+    parser.add_argument("-resume", "--resume", dest="resume", metavar="RESUME", default="0_0",
+                        help="Resume training and load from a certain set of checkpoints. Format is depth_epoch (Optional)")
+    parser.add_argument("-cp", "--cp", dest="cp", metavar="CHECKPOINT", default="/check_points/",
+                        help="Checkpoint location folder, to be used when resuming from an epoch")
 
     args = parser.parse_args()
     if not os.path.exists(args.dataset):
@@ -170,18 +174,45 @@ def Train():
     dataset = ImageDataset(DFP, imnames, train_transform)
     GradientAccumulations = 15
     data_loader = DataLoader(dataset, **params)
-    inc = 0
+    depth_losses_g = []
+    depth_losses_d = []
+    
+    #DataParallel:
+    if T.cuda.device_count() > 1:
+        print('Using ', torch.cuda.device_count(), 'GPUs')
+        D_net = nn.DataParallel(D_net)
+        G_net = nn.DataParallel(G_net)
+    
+    #Resume code
+    if not args.resume == 0: #Load params
+        print("resuming from " + args.resume)
+        Depth, epoch = args.resume.split("_")
+        assert(os.path.exists(args.cp+'check_point_depth_%i_epoch_%i.pth' % (int(Depth), int(epoch))))
+        print("Path: " + args.cp+'check_point_depth_%i_epoch_%i.pth' % (int(Depth), int(epoch)))
+        check_point = T.load(args.cp+'check_point_depth_%i_epoch_%i.pth' % (int(Depth), int(epoch)))
+        fixed_noise = check_point['fixed_noise']
+        Gen.load_state_dict(check_point['G_net'])
+        Disc.load_state_dict(check_point['D_net'])
+        G_optimizer.load_state_dict(check_point['G_optimizer'])
+        D_optimizer.load_state_dict(check_point['D_optimizer'])
+        G_epoch_losses = check_point['G_epoch_losses']
+        D_epoch_losses = check_point['D_epoch_losses']
+        Gen.depth = check_point['depth']
+        Disc.depth = check_point['depth']
+        Gen.alpha = check_point['alpha']
+        Disc.alpha = check_point['alpha']
+    
+    #All scheduling changes for resume
+    curr_depth = int(args.resume.split("_")[0])
+    
+    inc = curr_depth
     epoch_ = schedule[0][inc] #Increment 
     batch_s_ = schedule[1][inc]
     tot_iter_num = (len(dataset)/batch_s_)
     Gen.fade_iters = (1-Gen.alpha)/(schedule[0][inc])/(2*tot_iter_num)
     Disc.fade_iters = (1-Disc.alpha)/(schedule[0][inc])/(2*tot_iter_num)
-
-    depth_losses_g = []
-    depth_losses_d = []
-    
     #mainloop
-    for depth in range(1, int(np.log2(out_res))):
+    for depth in range(curr_depth, int(np.log2(out_res))):
         Gen.train()
         size = 2**(Gen.depth+1)
         print("Training current depth %d at size: %i x %i" % (depth, size, size))
@@ -192,7 +223,7 @@ def Train():
         batch_s_ = schedule[1][inc]
         D_epoch_losses = []
         G_epoch_losses = []
-        databar = tqdm(range(epoch_))
+        databar = tqdm(range(int(args.resume.split("_")[1]), epoch_))
         for epoch in databar:
             D_epoch_loss = 0.0
             G_epoch_loss = 0.0
@@ -279,8 +310,8 @@ def Train():
                            }
             with T.no_grad():
                 Gen.eval()
-                T.save(check_point, check_point_dir + 'check_point_epoch_%d.pth' % (epoch))
-                T.save(Gen.state_dict(), weight_dir + 'G_weight_epoch_%d.pth' %(epoch))
+                T.save(check_point, args.cp + 'check_point_depth_%d_epoch_%d.pth' % (depth, epoch))
+                T.save(Gen.state_dict(), weight_dir + 'G_weight_depth_%d_epoch_%d.pth' % (depth, epoch))
                 out_imgs = Gen(fixed_noise).to(device)
                 out_grid = make_grid(out_imgs, normalize=True, nrow=4, scale_each=True, padding=int(0.5*(2**Gen.depth))).permute(1,2,0)
                 plt.imshow(out_grid.cpu())

@@ -67,12 +67,14 @@ def process_command_line_arguments() -> argparse.Namespace:
                         help="Output folder (default: %(default)s)")
     parser.add_argument("-r", "--res", dest="res", metavar="RES", default=1024,
                         help="Desired output resolution to grow to. Default: 1024")
-    parser.add_argument("-resume", "--resume", dest="resume", metavar="RESUME", default="0_0",
+    parser.add_argument("-resume", "--resume", dest="resume", metavar="RESUME", default=0,
                         help="Resume training and load from a certain set of checkpoints. Format is depth_epoch (Optional)")
     parser.add_argument("-cp", "--cp", dest="cp", metavar="CHECKPOINT", default="/check_points/",
                         help="Checkpoint location folder, to be used when resuming from an epoch")
     parser.add_argument("-w", "--w", dest="weight", metavar="WEIGHT", default="/weight/",
                         help="Weight Location folder. Default: /weight/")
+    parser.add_argument("-g", "--g", dest="grad", metavar="GRAD", default=1,
+                        help="Gradient Accumulations technique to save memory. Default: 1")
 
 
     args = parser.parse_args()
@@ -173,9 +175,9 @@ def Train():
     #Implement a different train loop that allows us to train the network on some data
     #Depth -> Epochs -> samples for 9 total training cycles
     schedule = [[12, 14, 18, 20, 40, 70, 90, 120, 150], #Epochs for each depth
-                [12, 12, 6, 3, 3, 3, 2, 2, 2]] #Batch Size (Has to decrease to conserve memory) 4, 8, 16, 32
+                [12, 12, 6, 3, 1, 1, 1, 1, 1]] #Batch Size (Has to decrease to conserve memory) 4, 8, 16, 32
     dataset = ImageDataset(DFP, imnames, train_transform)
-    GradientAccumulations = 15
+    GradientAccumulations = int(args.grad)
     data_loader = DataLoader(dataset, **params)
     depth_losses_g = []
     depth_losses_d = []
@@ -204,10 +206,9 @@ def Train():
         Disc.depth = check_point['depth']
         Gen.alpha = check_point['alpha']
         Disc.alpha = check_point['alpha']
-    
-    #All scheduling changes for resume
-    curr_depth = int(args.resume.split("_")[0])
-    
+        curr_depth = int(args.resume.split("_")[0])
+    else:
+        curr_depth = 0
     inc = curr_depth
     epoch_ = schedule[0][inc] #Increment 
     batch_s_ = schedule[1][inc]
@@ -226,7 +227,7 @@ def Train():
         batch_s_ = schedule[1][inc]
         D_epoch_losses = []
         G_epoch_losses = []
-        if depth == curr_depth:
+        if depth == curr_depth and not curr_depth == 0:
             databar = tqdm(range(int(args.resume.split("_")[1]), epoch_))
         else:
             databar = tqdm(range(epoch_))
@@ -316,8 +317,6 @@ def Train():
                            }
             with T.no_grad():
                 Gen.eval()
-                T.save(check_point, args.cp + 'check_point_depth_%d_epoch_%d.pth' % (depth, epoch))
-                T.save(Gen.state_dict(), weight_dir + 'G_weight_depth_%d_epoch_%d.pth' % (depth, epoch))
                 out_imgs = Gen(fixed_noise).to(device)
                 out_grid = make_grid(out_imgs, normalize=True, nrow=4, scale_each=True, padding=int(0.5*(2**Gen.depth))).permute(1,2,0)
                 plt.imshow(out_grid.cpu())
@@ -325,6 +324,9 @@ def Train():
         depth_losses_g.append(np.mean(G_epoch_losses))
         depth_losses_d.append(np.mean(D_epoch_losses))
         #Increment depth step
+        with T.no_grad():
+            T.save(check_point, args.cp + 'check_point_depth_%d_epoch_%d.pth' % (depth, epoch))
+            T.save(Gen.state_dict(), weight_dir + 'G_weight_depth_%d_epoch_%d.pth' % (depth, epoch))
         if 2**(Gen.depth+2) <= out_res:
             inc += 1
             print("Growing network to size: " + str(2**(Gen.depth+2)))

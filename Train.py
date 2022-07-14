@@ -38,13 +38,17 @@ from torchvision.datasets import ImageFolder
 from NetworkMain import D, G
 from tqdm import tqdm
 
+import tensorboard
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
+
 """
-TODO:
+TODO: These TODO topics could equally be applied to the FME network
     Remove unnecessary imports
-    Reformat training structure, goal of this file X
-    Modular for google colab imports X
-    GET THIS THING WORKING X
-    Command Line Functionality X
+    Tensorboard visualize results (In Bookmark)
+    Spacial Transform Networks (Arg defined in parser for some transformation list)
+    Optuna experiment analyzing
+    Automatic Mixed Precision
 """
 
 #Command Line Functionality
@@ -57,25 +61,31 @@ def process_command_line_arguments() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser()
 
+    #Global Params
     parser.add_argument("-l", "--lr", dest="lr", metavar="LR", default = 1e-5,
                         type=str, help="Learning Rate param for both variables")
+    parser.add_argument("-g", "--g", dest="grad", metavar="GRAD", default=1,
+                        help="Gradient Accumulations technique to save memory. Default: 1")
     parser.add_argument("-ls", "--latentsize", dest="latentsize", metavar="LATENTSIZE", default = 512,
                         type=str, help="Latent size for noise vector to be passed through the Generator during training")
+    parser.add_argument("-r", "--res", dest="res", metavar="RES", default=1024,
+                        help="Desired output resolution to grow to. Default: 1024")
+
+    #Folder Settings
     parser.add_argument("-d", "--dataset", dest="dataset", metavar="DATASET",
                         type=str, help="Location for all training data for the network (MANDATORY)")
     parser.add_argument("-o", "--output", dest="output", metavar="OUTPUT", default='/output/',
                         help="Output folder (default: %(default)s)")
-    parser.add_argument("-r", "--res", dest="res", metavar="RES", default=1024,
-                        help="Desired output resolution to grow to. Default: 1024")
     parser.add_argument("-resume", "--resume", dest="resume", metavar="RESUME", default=0,
                         help="Resume training and load from a certain set of checkpoints. Format is depth_epoch (Optional)")
     parser.add_argument("-cp", "--cp", dest="cp", metavar="CHECKPOINT", default="/check_points/",
                         help="Checkpoint location folder, to be used when resuming from an epoch")
     parser.add_argument("-w", "--w", dest="weight", metavar="WEIGHT", default="/weight/",
                         help="Weight Location folder. Default: /weight/")
-    parser.add_argument("-g", "--g", dest="grad", metavar="GRAD", default=1,
-                        help="Gradient Accumulations technique to save memory. Default: 1")
 
+    #TensorBoard Configs
+    parser.add_argument("-log", "--log", dest="log", metavar="LOG", default='/Logs/',
+                        help="Desired output resolution to grow to. Default: /Logs/")
 
     args = parser.parse_args()
     if not os.path.exists(args.dataset):
@@ -101,8 +111,12 @@ class ImageDataset(Dataset):
 
 
 def Train():
-    #Define output folders
     args = process_command_line_arguments()
+    #TensorBoard config
+    Log = args.log
+    if not os.path.exists(Log):
+        os.makedirs(Log)
+    #Define output folders
     #root = '/Users/campb/Documents/PersonalProjects/AGRNet/'
     data_dir = args.dataset
     check_point_dir = '/check_points/'
@@ -124,6 +138,9 @@ def Train():
     lr = args.lr
     lambd = 10
     
+    #Tensorboard
+    writer = SummaryWriter(Log + 'GIms/')
+
     #Start main loop
     device = T.device('cuda:0' if (T.cuda.is_available())  else 'cpu')
 
@@ -140,8 +157,9 @@ def Train():
     Disc = D(latent_size, out_res).to(device)
     Gen = G(latent_size, out_res).to(device)
     
-    #Noise for discriminator
-    fixed_noise = T.randn(16, latent_size, 1, 1).to(device)
+    #Noise for Generator
+    fixed_noise = T.randn(16, latent_size, 1, 1).to(device) #Generate grid
+    LogFNoise = T.randn(1, latent_size, 1, 1).to(device) #Generate output Generator image
     
     #initialize optimizers
     D_optimizer = optim.Adam(Disc.parameters(), lr=lr, betas=(0, 0.99))
@@ -184,7 +202,7 @@ def Train():
     
     #DataParallel:
     if T.cuda.device_count() > 1:
-        print('Using ', torch.cuda.device_count(), 'GPUs')
+        print('Using ', T.cuda.device_count(), 'GPUs')
         D_net = nn.DataParallel(D_net)
         G_net = nn.DataParallel(G_net)
     
@@ -328,6 +346,12 @@ def Train():
             T.save(check_point, args.cp + 'check_point_depth_%d_epoch_%d.pth' % (depth, epoch))
             T.save(Gen.state_dict(), weight_dir + 'G_weight_depth_%d_epoch_%d.pth' % (depth, epoch))
         if 2**(Gen.depth+2) <= out_res:
+            #Log for Tensorboard
+            out_img = Gen(LogFNoise).to(device)
+            grid = torchvision.utils.make_grid(out_img, normalize=True)
+            writer.add_image("Generator Outputs", grid)
+
+            #Upgrade net
             inc += 1
             print("Growing network to size: " + str(2**(Gen.depth+2)))
             data_loader = DataLoader(dataset, **params)

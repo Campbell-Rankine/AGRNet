@@ -139,7 +139,7 @@ def Train():
     lambd = 10
     
     #Tensorboard
-    writer = SummaryWriter(Log + 'GIms/')
+    writer = SummaryWriter(Log)
 
     #Start main loop
     device = T.device('cuda:0' if (T.cuda.is_available())  else 'cpu')
@@ -266,7 +266,7 @@ def Train():
                 #out_grid = make_grid(fake, normalize=True, nrow=4, scale_each=True, padding=int(0.5*(2**Gen.depth))).permute(1,2,0)
                 #plt.imshow(out_grid.cpu())
                 fake_out = Disc(fake.detach())
-                real_out = Disc(samples)
+                real_out = Disc(samples) #Should add noise to these images
                 ## Gradient Penalty
 
                 eps = T.rand(samples.size(0), 1, 1, 1, device=device)
@@ -286,6 +286,7 @@ def Train():
 
 
                 D_loss = (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
+                writer.add_scalar("loss/discriminator", D_loss, tot_iter_num)
                 D_loss.backward()
                 nn.utils.clip_grad_value_(Disc.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
@@ -298,6 +299,7 @@ def Train():
                 fake_out = Disc(fake)
 
                 G_loss = (- fake_out.mean()) / GradientAccumulations
+                writer.add_scalar("loss/generator", G_loss, tot_iter_num)
                 G_loss.backward()
                 nn.utils.clip_grad_value_(Gen.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
@@ -349,7 +351,8 @@ def Train():
             #Log for Tensorboard
             out_img = Gen(LogFNoise).to(device)
             grid = torchvision.utils.make_grid(out_img, normalize=True)
-            writer.add_image("Generator Outputs", grid)
+            writer.add_image("out/generator", grid, int(np.log2(out_res)))
+            writer.flush()
 
             #Upgrade net
             inc += 1

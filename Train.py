@@ -86,10 +86,7 @@ def process_command_line_arguments() -> argparse.Namespace:
     #TensorBoard Configs
     parser.add_argument("-log", "--log", dest="log", metavar="LOG", default='/Logs/',
                         help="Desired output resolution to grow to. Default: /Logs/")
-
-    #Training resume params
-    parser.add_argument("-save", "--save", dest="save", metavar="SAVE", default=-1,
-                        help="How many epochs before the network path is saved. Default: -1, meaning it will wait until the end of the epoch to save")
+                        
 
     args = parser.parse_args()
     if not os.path.exists(args.dataset):
@@ -256,7 +253,6 @@ def Train():
             databar = tqdm(range(epoch_))
         for epoch in databar:
             T.cuda.empty_cache()
-            grad = None
             D_epoch_loss = 0.0
             G_epoch_loss = 0.0
 
@@ -277,7 +273,6 @@ def Train():
                 ## Gradient Penalty
 
                 eps = T.rand(samples.size(0), 1, 1, 1, device=device)
-                
                 x_hat = eps * samples + (1 - eps) * fake.detach()
                 x_hat.requires_grad = True
                 with T.no_grad():
@@ -346,11 +341,6 @@ def Train():
                            'depth': Gen.depth,
                            'alpha':Gen.alpha
                            }
-            if int(args.save) != -1:
-                if epoch % int(args.save) == 0:
-                    with T.no_grad():
-                        T.save(check_point, args.cp + 'check_point_depth_%d_epoch_%d.pth' % (depth, epoch))
-                        T.save(Gen.state_dict(), weight_dir + 'G_weight_depth_%d_epoch_%d.pth' % (depth, epoch))
             with T.no_grad():
                 Gen.eval()
                 out_imgs = Gen(fixed_noise).to(device)
@@ -360,10 +350,9 @@ def Train():
         depth_losses_g.append(np.mean(G_epoch_losses))
         depth_losses_d.append(np.mean(D_epoch_losses))
         #Increment depth step
-        if int(args.save) == -1:
-            with T.no_grad():
-                T.save(check_point, args.cp + 'check_point_depth_%d_epoch_%d.pth' % (depth, epoch))
-                T.save(Gen.state_dict(), weight_dir + 'G_weight_depth_%d_epoch_%d.pth' % (depth, epoch))
+        with T.no_grad():
+            T.save(check_point, args.cp + 'check_point_depth_%d_epoch_%d.pth' % (depth, epoch))
+            T.save(Gen.state_dict(), weight_dir + 'G_weight_depth_%d_epoch_%d.pth' % (depth, epoch))
         if 2**(Gen.depth+2) <= out_res:
             #Log for Tensorboard
             now = datetime.now()

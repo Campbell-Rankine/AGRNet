@@ -271,7 +271,8 @@ def Train():
                 ## Gradient Penalty
 
                 eps = T.rand(samples.size(0), 1, 1, 1, device=device)
-                eps = eps.expand_as(Gen(noise))
+                with T.no_grad():
+                    eps = eps.expand_as(Gen(noise))
                 x_hat = eps * samples + (1 - eps) * fake.detach()
                 x_hat.requires_grad = True
                 px_hat = Disc(x_hat)
@@ -308,7 +309,7 @@ def Train():
                 nn.utils.clip_grad_value_(Gen.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
                     G_optimizer.step()
-                Gen.zero_grad()
+                    Gen.zero_grad()
 
                 ##############
                 D_running_loss += abs(D_loss.item())

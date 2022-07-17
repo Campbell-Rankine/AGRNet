@@ -192,7 +192,7 @@ def Train():
     
     #Implement a different train loop that allows us to train the network on some data
     #Depth -> Epochs -> samples for 9 total training cycles
-    schedule = [[12, 14, 18, 20, 40, 70, 90, 120, 150], #Epochs for each depth
+    schedule = [[12, 14, 18, 20, 70, 120, 200, 250, 350], #Epochs for each depth
                 [12, 12, 6, 3, 1, 1, 1, 1, 1]] #Batch Size (Has to decrease to conserve memory) 4, 8, 16, 32
     dataset = ImageDataset(DFP, imnames, train_transform)
     GradientAccumulations = int(args.grad)
@@ -301,7 +301,7 @@ def Train():
 
                 fake_out = Disc(fake)
 
-                G_loss = (- fake_out.mean()) / GradientAccumulations
+                G_loss = (- fake_out.mean())
                 epochwriter.add_scalar("loss/generator", G_loss, i)
                 epochwriter.flush()
                 G_loss.backward()

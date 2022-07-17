@@ -236,8 +236,6 @@ def Train():
     #mainloop
     for depth in range(curr_depth, int(np.log2(out_res))):
         #Tensorboard
-        now = datetime.now()
-        depthwriter = SummaryWriter(Log + '_depth_' + now.strftime("%m/%d/%Y, %H:%M:%S"))
         Gen.train()
         size = 2**(Gen.depth+1)
         print("Training current depth %d at size: %i x %i" % (depth, size, size))
@@ -354,6 +352,8 @@ def Train():
             T.save(Gen.state_dict(), weight_dir + 'G_weight_depth_%d_epoch_%d.pth' % (depth, epoch))
         if 2**(Gen.depth+2) <= out_res:
             #Log for Tensorboard
+            now = datetime.now()
+            depthwriter = SummaryWriter(Log + '_depth_' + now.strftime("%m/%d/%Y, %H:%M:%S"))
             out_img = Gen(LogFNoise).to(device)
             grid = torchvision.utils.make_grid(out_img, normalize=True)
             depthwriter.add_image("out/generator", grid, int(np.log2(out_res)))

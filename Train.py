@@ -258,9 +258,9 @@ def Train():
             for i, samples in enumerate(data_loader):
                 ##  update D
                 if size != out_res: #Basically need to, A Reshape, B prepare the data for the networks
-                    samples = F.interpolate(samples, size=(size,size)).to(device)
-                else:
-                    samples = samples.to(device)
+                    with T.no_grad():
+                        samples = F.interpolate(samples, size=(size,size))
+                samples = samples.to(device)
 
                 noise = T.randn(samples.size(0), latent_size, 1, 1, device=device)
                 fake = Gen(noise)
@@ -286,7 +286,7 @@ def Train():
                 #Apply gradient clipping to both 
 
 
-                D_loss = (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
+                D_loss += (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
                 now = datetime.now()
                 epochwriter = SummaryWriter(Log + '_epoch_' + str(epoch))
                 epochwriter.add_scalar("loss/discriminator", D_loss, i)
@@ -301,14 +301,14 @@ def Train():
 
                 fake_out = Disc(fake)
 
-                G_loss = (- fake_out.mean())
+                G_loss += (- fake_out.mean())  / GradientAccumulations
                 epochwriter.add_scalar("loss/generator", G_loss, i)
                 epochwriter.flush()
                 G_loss.backward()
                 nn.utils.clip_grad_value_(Gen.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
                     G_optimizer.step()
-                    Gen.zero_grad()
+                Gen.zero_grad()
 
                 ##############
                 D_running_loss += abs(D_loss.item())

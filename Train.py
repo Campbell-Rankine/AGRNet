@@ -256,6 +256,7 @@ def Train():
 
             #databar = tqdm(data_loader)
             for i, samples in enumerate(data_loader):
+                now = datetime.now()
                 epochwriter = SummaryWriter(Log + '_epoch_' + now.strftime("%m/%d/%Y, %H:%M:%S"))
                 ##  update D
                 if size != out_res: #Basically need to, A Reshape, B prepare the data for the networks

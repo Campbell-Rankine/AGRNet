@@ -256,8 +256,6 @@ def Train():
 
             #databar = tqdm(data_loader)
             for i, samples in enumerate(data_loader):
-                now = datetime.now()
-                epochwriter = SummaryWriter(Log + '_epoch_' + now.strftime("%m/%d/%Y, %H:%M:%S"))
                 ##  update D
                 if size != out_res: #Basically need to, A Reshape, B prepare the data for the networks
                     samples = F.interpolate(samples, size=(size,size)).to(device)
@@ -289,7 +287,9 @@ def Train():
 
 
                 D_loss = (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
-                epochwriter.add_scalar("loss/discriminator", D_loss, i * depth)
+                now = datetime.now()
+                epochwriter = SummaryWriter(Log + '_epoch_')
+                epochwriter.add_scalar("loss/discriminator" + now.strftime("%m/%d/%Y, %H:%M:%S"), D_loss, i * depth)
                 D_loss.backward()
                 nn.utils.clip_grad_value_(Disc.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
@@ -302,7 +302,7 @@ def Train():
                 fake_out = Disc(fake)
 
                 G_loss = (- fake_out.mean()) / GradientAccumulations
-                epochwriter.add_scalar("loss/generator", G_loss, i * depth)
+                epochwriter.add_scalar("loss/generator" + now.strftime("%m/%d/%Y, %H:%M:%S"), G_loss, i * depth)
                 epochwriter.flush()
                 G_loss.backward()
                 nn.utils.clip_grad_value_(Gen.parameters(), clip_value=1.0)

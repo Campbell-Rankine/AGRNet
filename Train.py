@@ -287,7 +287,7 @@ def Train():
                 #Apply gradient clipping to both 
 
 
-                D_loss += (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
+                D_loss = (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
                 now = datetime.now()
                 epochwriter = SummaryWriter(Log + '_epoch_' + str(epoch))
                 epochwriter.add_scalar("loss/discriminator", D_loss, i)
@@ -302,7 +302,7 @@ def Train():
 
                 fake_out = Disc(fake)
 
-                G_loss += (- fake_out.mean())  / GradientAccumulations
+                G_loss = (- fake_out.mean())  / GradientAccumulations
                 epochwriter.add_scalar("loss/generator", G_loss, i)
                 epochwriter.flush()
                 G_loss.backward()

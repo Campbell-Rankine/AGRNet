@@ -256,6 +256,7 @@ def Train():
             databar = tqdm(range(epoch_))
         for epoch in databar:
             T.cuda.empty_cache()
+            grad = None
             D_epoch_loss = 0.0
             G_epoch_loss = 0.0
 

@@ -280,12 +280,11 @@ def Train():
                 x_hat.requires_grad = True
                 with T.no_grad():
                     eps = eps.expand_as(Gen(noise))
-                    px_hat = Disc(x_hat)
-                px_hat.requires_grad=True
+                px_hat = Disc(x_hat)
                 grad = T.autograd.grad(
                                             outputs = px_hat.sum(),
                                             inputs = x_hat, 
-                                            create_graph=True
+                                            create_graph=False
                                             )[0]
                 grad_norm = grad.view(samples.size(0), -1).norm(2, dim=1)
                 gradient_penalty = lambd * ((grad_norm  - 1)**2).mean()

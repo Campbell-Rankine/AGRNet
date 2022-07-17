@@ -276,11 +276,11 @@ def Train():
                 ## Gradient Penalty
 
                 eps = T.rand(samples.size(0), 1, 1, 1, device=device)
-                x_hat = eps * samples + (1 - eps) * fake.detach()
-                x_hat.requires_grad = True
                 with T.no_grad():
                     eps = eps.expand_as(Gen(noise))
-                px_hat = Disc(x_hat)
+                    px_hat = Disc(x_hat)
+                x_hat = eps * samples + (1 - eps) * fake.detach()
+                x_hat.requires_grad = True
                 grad = T.autograd.grad(
                                             outputs = px_hat.sum(),
                                             inputs = x_hat, 

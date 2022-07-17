@@ -289,7 +289,7 @@ def Train():
                 D_loss = (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
                 now = datetime.now()
                 epochwriter = SummaryWriter(Log + '_epoch_' + str(epoch))
-                epochwriter.add_scalar("loss/discriminator", D_loss, now.strftime("%m/%d/%Y, %H:%M:%S"))
+                epochwriter.add_scalar("loss/discriminator", D_loss, i)
                 D_loss.backward()
                 nn.utils.clip_grad_value_(Disc.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
@@ -302,7 +302,7 @@ def Train():
                 fake_out = Disc(fake)
 
                 G_loss = (- fake_out.mean()) / GradientAccumulations
-                epochwriter.add_scalar("loss/generator", G_loss, now.strftime("%m/%d/%Y, %H:%M:%S"))
+                epochwriter.add_scalar("loss/generator", G_loss, i)
                 epochwriter.flush()
                 G_loss.backward()
                 nn.utils.clip_grad_value_(Gen.parameters(), clip_value=1.0)
@@ -357,7 +357,7 @@ def Train():
             depthwriter = SummaryWriter(Log + '_depth_')
             out_img = Gen(LogFNoise).to(device)
             grid = torchvision.utils.make_grid(out_img, normalize=True)
-            depthwriter.add_image("out/generator", grid, now.strftime("%m/%d/%Y, %H:%M:%S"))
+            depthwriter.add_image("out/generator", grid, depth)
             depthwriter.flush()
 
             #Upgrade net

@@ -281,6 +281,7 @@ def Train():
                 with T.no_grad():
                     eps = eps.expand_as(Gen(noise))
                     px_hat = Disc(x_hat)
+                px_hat.requires_grad=True
                 grad = T.autograd.grad(
                                             outputs = px_hat.sum(),
                                             inputs = x_hat, 

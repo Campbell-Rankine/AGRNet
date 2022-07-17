@@ -280,7 +280,7 @@ def Train():
                 grad = T.autograd.grad(
                                             outputs = px_hat.sum(),
                                             inputs = x_hat, 
-                                            create_graph=True
+                                            create_graph=False
                                             )[0]
                 grad_norm = grad.view(samples.size(0), -1).norm(2, dim=1)
                 gradient_penalty = lambd * ((grad_norm  - 1)**2).mean()

@@ -251,6 +251,7 @@ def Train():
         else:
             databar = tqdm(range(epoch_))
         for epoch in databar:
+            T.cuda.empty_cache()
             D_epoch_loss = 0.0
             G_epoch_loss = 0.0
 
@@ -273,9 +274,9 @@ def Train():
                 eps = T.rand(samples.size(0), 1, 1, 1, device=device)
                 with T.no_grad():
                     eps = eps.expand_as(Gen(noise))
+                    px_hat = Disc(x_hat)
                 x_hat = eps * samples + (1 - eps) * fake.detach()
                 x_hat.requires_grad = True
-                px_hat = Disc(x_hat)
                 grad = T.autograd.grad(
                                             outputs = px_hat.sum(),
                                             inputs = x_hat, 
@@ -283,6 +284,7 @@ def Train():
                                             )[0]
                 grad_norm = grad.view(samples.size(0), -1).norm(2, dim=1)
                 gradient_penalty = lambd * ((grad_norm  - 1)**2).mean()
+                grad = None
                 ###########
                 #Apply gradient clipping to both 
 
@@ -298,8 +300,6 @@ def Train():
                     Disc.zero_grad()
 
                 ##	update G
-
-
                 fake_out = Disc(fake)
 
                 G_loss = (- fake_out.mean())  / GradientAccumulations

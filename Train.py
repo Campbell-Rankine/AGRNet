@@ -235,6 +235,9 @@ def Train():
     Disc.fade_iters = (1-Disc.alpha)/(schedule[0][inc])/(2*tot_iter_num)
     #mainloop
     for depth in range(curr_depth, int(np.log2(out_res))):
+        #Tensorboard
+        now = datetime.now()
+        depthwriter = SummaryWriter(Log + '_depth_' + now.strftime("%m/%d/%Y, %H:%M:%S"))
         Gen.train()
         size = 2**(Gen.depth+1)
         print("Training current depth %d at size: %i x %i" % (depth, size, size))
@@ -255,6 +258,7 @@ def Train():
 
             #databar = tqdm(data_loader)
             for i, samples in enumerate(data_loader):
+                epochwriter = SummaryWriter(Log + '_epoch_' + now.strftime("%m/%d/%Y, %H:%M:%S"))
                 ##  update D
                 if size != out_res: #Basically need to, A Reshape, B prepare the data for the networks
                     samples = F.interpolate(samples, size=(size,size)).to(device)
@@ -286,7 +290,7 @@ def Train():
 
 
                 D_loss = (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
-                writer.add_scalar("loss/discriminator", D_loss, tot_iter_num)
+                epochwriter.add_scalar("loss/discriminator", D_loss, tot_iter_num)
                 D_loss.backward()
                 nn.utils.clip_grad_value_(Disc.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
@@ -299,7 +303,8 @@ def Train():
                 fake_out = Disc(fake)
 
                 G_loss = (- fake_out.mean()) / GradientAccumulations
-                writer.add_scalar("loss/generator", G_loss, tot_iter_num)
+                epochwriter.add_scalar("loss/generator", G_loss, tot_iter_num)
+                epochwriter.flush()
                 G_loss.backward()
                 nn.utils.clip_grad_value_(Gen.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
@@ -351,8 +356,8 @@ def Train():
             #Log for Tensorboard
             out_img = Gen(LogFNoise).to(device)
             grid = torchvision.utils.make_grid(out_img, normalize=True)
-            writer.add_image("out/generator", grid, int(np.log2(out_res)))
-            writer.flush()
+            depthwriter.add_image("out/generator", grid, int(np.log2(out_res)))
+            depthwriter.flush()
 
             #Upgrade net
             inc += 1

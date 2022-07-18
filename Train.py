@@ -242,6 +242,7 @@ def Train():
     #mainloop
     for depth in range(curr_depth, int(np.log2(out_res))):
         #Tensorboard
+        scaler = T.cuda.amp.GradScaler()
         Gen.train()
         size = 2**(Gen.depth+1)
         print("Training current depth %d at size: %i x %i" % (depth, size, size))
@@ -258,6 +259,8 @@ def Train():
             databar = tqdm(range(epoch_))
         for epoch in databar:
             T.cuda.empty_cache()
+            D_optimizer.zero_grad() #Memory handling
+            G_optimizer.zero_grad()
             D_epoch_loss = 0.0
             G_epoch_loss = 0.0
 
@@ -270,7 +273,8 @@ def Train():
                 samples = samples.to(device)
 
                 noise = T.randn(samples.size(0), latent_size, 1, 1, device=device)
-                fake = Gen(noise)
+                with T.cuda.amp.autocast():
+                    fake = Gen(noise)
                 #out_grid = make_grid(fake, normalize=True, nrow=4, scale_each=True, padding=int(0.5*(2**Gen.depth))).permute(1,2,0)
                 #plt.imshow(out_grid.cpu())
                 fake_out = Disc(fake.detach())
@@ -282,39 +286,49 @@ def Train():
                 x_hat.requires_grad = True
                 with T.no_grad():
                     eps = eps.expand_as(Gen(noise))
-                px_hat = Disc(x_hat)
-                grad = T.autograd.grad(
-                                            outputs = px_hat.sum(),
+                with T.cuda.amp.autocast():
+                    px_hat = Disc(x_hat)
+                scaled_grad = T.autograd.grad(
+                                            outputs = scaler.scale(px_hat.sum()),
                                             inputs = x_hat, 
                                             create_graph=False
                                             )[0]
-                grad_norm = grad.view(samples.size(0), -1).norm(2, dim=1)
-                gradient_penalty = lambd * ((grad_norm  - 1)**2).mean()
-                grad = None
+
+                invscale = 1./scaler.get_scale()
+                grad = [p * invscale for p in scaled_grad]
+                with T.cuda.amp.autocast():
+                    grad_norm = grad.view(samples.size(0), -1).norm(2, dim=1)
+                    gradient_penalty = lambd * ((grad_norm  - 1)**2).mean()
+                    grad = None
+                    D_loss = (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
                 ###########
                 #Apply gradient clipping to both 
 
 
-                D_loss = (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
                 now = datetime.now()
                 epochwriter = SummaryWriter(Log + '_epoch_' + str(epoch))
                 epochwriter.add_scalar("loss/discriminator", D_loss, i)
-                D_loss.backward()
+                scaler.scale(D_loss).backward()
+                scaler.unscale_(D_optimizer)
                 nn.utils.clip_grad_value_(Disc.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
-                    D_optimizer.step()
+                    scaler.step(D_optimizer)
+                    scaler.update()
                     Disc.zero_grad()
+
 
                 ##	update G
                 fake_out = Disc(fake)
-
-                G_loss = (- fake_out.mean())  / GradientAccumulations
+                with T.cuda.amp.autocast():
+                    G_loss = (- fake_out.mean())  / GradientAccumulations
                 epochwriter.add_scalar("loss/generator", G_loss, i)
                 epochwriter.flush()
-                G_loss.backward()
+                scaler.scale(G_loss).backward()
+                scaler.unscale_(G_optimizer)
                 nn.utils.clip_grad_value_(Gen.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
-                    G_optimizer.step()
+                    scaler.step(G_optimizer)
+                    scaler.update()
                     Gen.zero_grad()
 
                 ##############

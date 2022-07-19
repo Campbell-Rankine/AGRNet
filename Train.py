@@ -295,7 +295,7 @@ def Train():
                                             )[0]
 
                 invscale = 1./scaler.get_scale()
-                grad = [p * invscale for p in scaled_grad]
+                grad = T.tensor([p * invscale for p in scaled_grad])
                 with T.cuda.amp.autocast():
                     grad_norm = grad.view(samples.size(0), -1).norm(2, dim=1)
                     gradient_penalty = lambd * ((grad_norm  - 1)**2).mean()

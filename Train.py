@@ -275,10 +275,10 @@ def Train():
                 noise = T.randn(samples.size(0), latent_size, 1, 1, device=device)
                 with T.cuda.amp.autocast():
                     fake = Gen(noise)
-                #out_grid = make_grid(fake, normalize=True, nrow=4, scale_each=True, padding=int(0.5*(2**Gen.depth))).permute(1,2,0)
-                #plt.imshow(out_grid.cpu())
-                fake_out = Disc(fake.detach())
-                real_out = Disc(samples) #Should add noise to these images
+                    #out_grid = make_grid(fake, normalize=True, nrow=4, scale_each=True, padding=int(0.5*(2**Gen.depth))).permute(1,2,0)
+                    #plt.imshow(out_grid.cpu())
+                    fake_out = Disc(fake.detach())
+                    real_out = Disc(samples) #Should add noise to these images
                 ## Gradient Penalty
 
                 eps = T.rand(samples.size(0), 1, 1, 1, device=device)

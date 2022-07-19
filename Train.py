@@ -311,8 +311,7 @@ def Train():
                 D_loss.backward()
                 nn.utils.clip_grad_value_(Disc.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
-                    scaler.step(D_optimizer)
-                    scaler.update()
+                    D_optimizer.step()
                     Disc.zero_grad()
 
 
@@ -325,8 +324,7 @@ def Train():
                 G_loss.backward()
                 nn.utils.clip_grad_value_(Gen.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
-                    scaler.step(G_optimizer)
-                    scaler.update()
+                    G_optimizer.step()
                     Gen.zero_grad()
 
                 ##############

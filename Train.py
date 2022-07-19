@@ -318,8 +318,8 @@ def Train():
 
 
                 ##	update G
-                fake_out = Disc(fake)
                 with T.cuda.amp.autocast():
+                    fake_out = Disc(fake)
                     G_loss = (- fake_out.mean())  / GradientAccumulations
                 epochwriter.add_scalar("loss/generator", G_loss, i)
                 epochwriter.flush()

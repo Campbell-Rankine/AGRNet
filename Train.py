@@ -300,6 +300,7 @@ def Train():
                     gradient_penalty = lambd * ((grad_norm  - 1)**2).mean()
                     grad = None
                     D_loss = (fake_out.mean() - real_out.mean() + gradient_penalty) / GradientAccumulations
+                    D_loss.requires_grad = True
                 ###########
                 #Apply gradient clipping to both 
 

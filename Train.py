@@ -308,8 +308,7 @@ def Train():
                 now = datetime.now()
                 epochwriter = SummaryWriter(Log + '_epoch_' + str(epoch))
                 epochwriter.add_scalar("loss/discriminator", D_loss, i)
-                scaler.scale(D_loss).backward()
-                scaler.unscale_(D_optimizer)
+                D_loss.backward()
                 nn.utils.clip_grad_value_(Disc.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
                     scaler.step(D_optimizer)
@@ -323,8 +322,7 @@ def Train():
                     G_loss = (- fake_out.mean())  / GradientAccumulations
                 epochwriter.add_scalar("loss/generator", G_loss, i)
                 epochwriter.flush()
-                scaler.scale(G_loss).backward()
-                scaler.unscale_(G_optimizer)
+                G_loss.backward()
                 nn.utils.clip_grad_value_(Gen.parameters(), clip_value=1.0)
                 if (i+1) % GradientAccumulations == 0:
                     scaler.step(G_optimizer)

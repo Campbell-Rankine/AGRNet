@@ -288,14 +288,12 @@ def Train():
                     eps = eps.expand_as(Gen(noise))
                 with T.cuda.amp.autocast():
                     px_hat = Disc(x_hat)
-                scaled_grad = T.autograd.grad(
-                                            outputs = scaler.scale(px_hat.sum()),
+                grad = T.autograd.grad(
+                                            outputs = px_hat.sum(),
                                             inputs = x_hat, 
                                             create_graph=False
                                             )[0]
 
-                invscale = 1./scaler.get_scale()
-                grad = scaled_grad * invscale
                 with T.cuda.amp.autocast():
                     grad_norm = grad.view(samples.size(0), -1).norm(2, dim=1)
                     gradient_penalty = lambd * ((grad_norm  - 1)**2).mean()

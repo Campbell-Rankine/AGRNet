@@ -45,10 +45,11 @@ from datetime import datetime
 """
 TODO: These TODO topics could equally be applied to the FME network
     Remove unnecessary imports
-    Tensorboard visualize results (In Bookmark)
     Spacial Transform Networks (Arg defined in parser for some transformation list)
     Optuna experiment analyzing
-    Automatic Mixed Precision
+    Discriminator penalization
+    Lassertian Loss
+    PROGAN Loss, both of above to be implemented in utils
 """
 
 #Command Line Functionality
@@ -275,7 +276,9 @@ def Train():
                 noise = T.randn(samples.size(0), latent_size, 1, 1, device=device)
                 with T.cuda.amp.autocast():
                     with T.no_grad():
+                        G.eval()
                         fake = Gen(noise)
+                        G.train()
                     #out_grid = make_grid(fake, normalize=True, nrow=4, scale_each=True, padding=int(0.5*(2**Gen.depth))).permute(1,2,0)
                     #plt.imshow(out_grid.cpu())
                         fake_out = Disc(fake.detach())
@@ -380,7 +383,9 @@ def Train():
             depthwriter = SummaryWriter(Log + '_depth_')
             out_img = Gen(LogFNoise).to(device)
             grid = torchvision.utils.make_grid(out_img, normalize=True)
-            depthwriter.add_image("out/generator", grid, depth)
+            gridS = torchvision.utils.make_grid(samples[0], normalize=True)
+            depthwriter.add_image("out/generator", grid, depth) #Display output image
+            depthwriter.add_image("out/DataSample", gridS, depth) #Display Sample image for testing
             depthwriter.flush()
 
             #Upgrade net

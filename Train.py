@@ -186,6 +186,7 @@ def Train():
     norms = (0.5,0.5,0.5), (0.5,0.5,0.5)
     train_transform = transforms.Compose([
                     transforms.ToTensor(),
+                    transforms.RandomCrop(out_res, 4),
                     transforms.Resize((out_res, out_res)),
                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                     ])

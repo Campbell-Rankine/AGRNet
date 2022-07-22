@@ -188,7 +188,7 @@ def Train():
                     transforms.ToTensor(),
                     transforms.Resize((out_res, out_res)),
                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                    transforms.RandomCrop(out_res, 4)])
+                    ])
     params = {'batch_size': 12,
               'shuffle': True,
              'num_workers': 0,
